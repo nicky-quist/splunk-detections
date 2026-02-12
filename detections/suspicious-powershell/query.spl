@@ -1,0 +1,37 @@
+(
+  index=* (
+    (sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1) OR
+    (sourcetype="WinEventLog:Security" EventCode=4688) OR
+    (source="WinEventLog:Security" EventCode=4688)
+  )
+)
+| eval Image=coalesce(Image, NewProcessName, ProcessName, process_path)
+| eval CommandLine=coalesce(CommandLine, ProcessCommandLine, Process_Command_Line, ParentCommandLine, command_line)
+| eval ParentImage=coalesce(ParentImage, Creator_Process_Name, ParentProcessName, parent_process)
+| where like(lower(Image), "%\\powershell.exe") OR like(lower(Image), "%\\pwsh.exe")
+| eval cmd=lower(CommandLine)
+
+| eval hit_enc=if(match(cmd,"(^|\\s)(-enc|-encodedcommand)\\b"),1,0)
+| eval hit_hidden=if(match(cmd,"(^|\\s)(-w\\s+hidden|-windowstyle\\s+hidden)\\b"),1,0)
+| eval hit_nop=if(match(cmd,"(^|\\s)(-nop|-noprofile)\\b"),1,0)
+| eval hit_bypass=if(match(cmd,"(^|\\s)(-ep\\s+bypass|-executionpolicy\\s+bypass)\\b"),1,0)
+
+| eval hit_iex=if(match(cmd,"\\biex\\b|invoke-expression"),1,0)
+| eval hit_web=if(match(cmd,"downloadstring\\(|new-object\\s+net\\.webclient|invoke-webrequest|iwr\\b|invoke-restmethod|irm\\b|start-bitstransfer|bitsadmin"),1,0)
+
+| eval score = (hit_enc*3) + (hit_bypass*2) + (hit_hidden*2) + (hit_nop*1) + (hit_iex*2) + (hit_web*2)
+
+| where score >= 3
+| stats count as hits
+        max(score) as max_score
+        values(hit_enc) as enc
+        values(hit_bypass) as exec_bypass
+        values(hit_hidden) as hidden
+        values(hit_nop) as noprofile
+        values(hit_iex) as iex
+        values(hit_web) as web_download
+        values(ParentImage) as parent_process
+        values(Image) as process
+        values(CommandLine) as command_line
+  by host user
+| sort - max_score hits
