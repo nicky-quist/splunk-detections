@@ -1,0 +1,19 @@
+index=main sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+| rex field=_raw "<EventID>(?<EventID>\d+)</EventID>"
+| rex field=_raw "<Data Name='Image'>(?<Image>[^<]+)</Data>"
+| rex field=_raw "<Data Name='CommandLine'>(?<CommandLine>[^<]+)</Data>"
+| rex field=_raw "<Data Name='ParentImage'>(?<ParentImage>[^<]+)</Data>"
+| rex field=_raw "<Data Name='User'>(?<User>[^<]+)</Data>"
+| where EventID="1"
+| eval img=lower(Image), cmd=lower(CommandLine), parent=lower(ParentImage)
+| where like(img,"%\\powershell.exe") OR like(img,"%\\pwsh.exe")
+| eval reason=mvappend(
+    if(match(cmd,"(^|\\s)(-enc|-encodedcommand)\\b"),"encodedcommand",null()),
+    if(match(cmd,"\\biex\\b|invoke-expression"),"iex",null()),
+    if(match(cmd,"downloadstring\\(|new-object\\s+net\\.webclient|invoke-webrequest|\\biwr\\b|invoke-restmethod|\\birm\\b|start-bitstransfer|bitsadmin"),"download_cradle",null()),
+    if(match(cmd,"(^|\\s)(-w\\s+hidden|-windowstyle\\s+hidden)\\b"),"hidden_window",null()),
+    if(match(cmd,"(^|\\s)(-ep\\s+bypass|-executionpolicy\\s+bypass)\\b"),"execpolicy_bypass",null())
+)
+| where mvcount(reason) > 0
+| table _time host User ParentImage Image CommandLine reason
+| sort - _time
