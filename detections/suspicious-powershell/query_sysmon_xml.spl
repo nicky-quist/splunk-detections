@@ -5,7 +5,7 @@ index=main sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
 | rex field=_raw "<Data Name='ParentImage'>(?<ParentImage>[^<]+)</Data>"
 | rex field=_raw "<Data Name='User'>(?<User>[^<]+)</Data>"
 | where EventID="1"
-| eval img=lower(Image), cmd=lower(CommandLine), parent=lower(ParentImage)
+| eval img=lower(Image), cmd=lower(CommandLine)
 | where like(img,"%\\powershell.exe") OR like(img,"%\\pwsh.exe")
 | eval reason=mvappend(
     if(match(cmd,"(^|\\s)(-enc|-encodedcommand)\\b"),"encodedcommand",null()),
@@ -15,5 +15,13 @@ index=main sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
     if(match(cmd,"(^|\\s)(-ep\\s+bypass|-executionpolicy\\s+bypass)\\b"),"execpolicy_bypass",null())
 )
 | where mvcount(reason) > 0
-| table _time host User ParentImage Image CommandLine reason
+| eval severity=case(
+    mvfind(reason,"encodedcommand")>-1 AND mvfind(reason,"download_cradle")>-1, "high",
+    mvfind(reason,"encodedcommand")>-1, "high",
+    mvfind(reason,"download_cradle")>-1, "high",
+    mvfind(reason,"iex")>-1, "high",
+    mvfind(reason,"hidden_window")>-1 AND mvfind(reason,"execpolicy_bypass")>-1, "medium",
+    1=1, "low"
+)
+| table _time host User ParentImage Image CommandLine reason severity
 | sort - _time
