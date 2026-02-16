@@ -3,6 +3,11 @@
 ## Why this matters
 PowerShell is frequently abused for initial execution and payload retrieval (fileless activity). This detection looks for common high-signal flags used in malicious PowerShell such as encoded commands, hidden windows, bypassed execution policy, and download cradles.
 
+## Evidence
+Validation screenshot and reproduction notes live here:
+- `evidence/README.md`
+- `evidence/splunk-hit.png`
+  
 ## Data requirements
 One of the following (best → acceptable):
 - Sysmon Event ID 1 (Process Create) with command line
