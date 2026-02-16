@@ -1,3 +1,4 @@
+evidence/splunk-hit
 # Evidence
 
 This folder contains validation artifacts that prove the detection works end-to-end in a real Splunk + Sysmon lab.
