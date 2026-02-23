@@ -1,0 +1,19 @@
+index=* (sourcetype=WinEventLog:Security OR sourcetype=XmlWinEventLog:Security OR sourcetype=*wineventlog*security*)
+EventCode=4625
+| eval src_ip=coalesce(src_ip, Source_Network_Address, SourceNetworkAddress, IpAddress, ip, ClientIP)
+| eval user=lower(coalesce(user, TargetUserName, Account_Name, Target_Account, TargetUser, UserName))
+| eval host=coalesce(dest, ComputerName, host)
+| where isnotnull(src_ip) AND src_ip!="-"
+| bucket _time span=10m
+| stats
+    count as failures
+    dc(user) as distinct_users
+    dc(host) as distinct_hosts
+    values(user) as users_sample
+    values(host) as hosts_sample
+  by _time src_ip
+| where failures >= 8 AND distinct_users >= 6
+| eval detection="password-spray-4625"
+| eval severity=case(distinct_users>=12 OR distinct_hosts>=3, "high", distinct_users>=8, "medium", true(), "low")
+| table _time src_ip failures distinct_users distinct_hosts severity users_sample hosts_sample detection
+| sort - _time
