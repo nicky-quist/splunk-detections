@@ -1,0 +1,25 @@
+index=* sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1
+| eval proc=lower(Image)
+| eval cmd=lower(CommandLine)
+| eval parent=lower(ParentImage)
+| where isnotnull(cmd) AND (
+    (like(proc, "%\\vssadmin.exe") AND cmd like "%delete%" AND cmd like "%shadows%") OR
+    (like(proc, "%\\wbadmin.exe") AND cmd like "%delete%" AND (cmd like "%catalog%" OR cmd like "%systemstatebackup%")) OR
+    (like(proc, "%\\wmic.exe") AND cmd like "%shadowcopy%" AND cmd like "%delete%") OR
+    ((like(proc, "%\\powershell.exe") OR like(proc, "%\\pwsh.exe")) AND (
+        cmd like "%win32_shadowcopy%" OR
+        (cmd like "%get-ciminstance%" AND cmd like "%win32_shadowcopy%") OR
+        (cmd like "%get-wmiobject%" AND cmd like "%win32_shadowcopy%") OR
+        cmd like "%delete()%" OR
+        (cmd like "%remove-ciminstance%" AND cmd like "%win32_shadowcopy%")
+    ))
+)
+| eval detection="shadowcopy-deletion"
+| eval severity=case(
+    like(proc, "%\\vssadmin.exe") AND cmd like "%/all%", "high",
+    like(proc, "%\\wmic.exe"), "high",
+    like(proc, "%\\wbadmin.exe"), "high",
+    true(), "medium"
+)
+| table _time host User proc parent cmd severity detection
+| sort - _time
