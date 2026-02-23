@@ -1,0 +1,25 @@
+index=* (sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR sourcetype=WinEventLog:Security OR sourcetype=*sysmon* OR sourcetype=*wineventlog*)
+| eval proc=lower(coalesce(Process_Name, process_name, NewProcessName, Image, image, process_path))
+| eval cmd=lower(coalesce(Process_Command_Line, process_command_line, CommandLine, command_line, ProcessCommandLine))
+| eval parent=lower(coalesce(Parent_Process_Name, parent_process_name, ParentImage, parent_image, ParentProcessName))
+| where isnotnull(cmd) AND (
+    (like(proc, "%\\vssadmin.exe") AND cmd like "%delete%" AND cmd like "%shadows%") OR
+    (like(proc, "%\\wbadmin.exe") AND cmd like "%delete%" AND (cmd like "%catalog%" OR cmd like "%systemstatebackup%")) OR
+    (like(proc, "%\\wmic.exe") AND cmd like "%shadowcopy%" AND cmd like "%delete%") OR
+    ((like(proc, "%\\powershell.exe") OR like(proc, "%\\pwsh.exe")) AND (
+        cmd like "%win32_shadowcopy%" OR
+        cmd like "%get-ciminstance%" AND cmd like "%win32_shadowcopy%" OR
+        cmd like "%get-wmiobject%" AND cmd like "%win32_shadowcopy%" OR
+        cmd like "%delete()%" OR
+        cmd like "%remove-ciminstance%" AND cmd like "%win32_shadowcopy%"
+    ))
+)
+| eval detection="shadowcopy-deletion"
+| eval severity=case(
+    like(proc, "%\\vssadmin.exe") AND cmd like "%delete%" AND cmd like "%shadows%" AND cmd like "%/all%", "high",
+    like(proc, "%\\wmic.exe") AND cmd like "%shadowcopy%" AND cmd like "%delete%", "high",
+    like(proc, "%\\wbadmin.exe") AND cmd like "%delete%" AND cmd like "%catalog%", "high",
+    true(), "medium"
+)
+| table _time host user proc parent cmd severity detection
+| sort - _time
