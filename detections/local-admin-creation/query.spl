@@ -1,0 +1,21 @@
+index=* (sourcetype=WinEventLog:Security OR sourcetype=XmlWinEventLog:Security OR sourcetype=*wineventlog*security*)
+(EventCode=4720 OR EventCode=4732 OR EventCode=4624)
+| eval sid=coalesce(TargetUserSid, MemberSid, TargetSid)
+| eval event_type=case(
+    EventCode=4720, "created",
+    EventCode=4732 AND TargetSid="S-1-5-32-544", "added_to_admins",
+    EventCode=4624, "first_logon"
+  )
+| where isnotnull(event_type)
+| stats
+    values(event_type) as sequence
+    values(TargetUserName) as usernames
+    min(_time) as first_seen
+    max(_time) as last_seen
+  by sid
+| eval span_min=round((last_seen-first_seen)/60,1)
+| where mvfind(sequence,"created")>=0 AND mvfind(sequence,"added_to_admins")>=0 AND mvfind(sequence,"first_logon")>=0
+| eval detection="local-admin-creation-first-logon"
+| eval severity=case(span_min<=15, "high", span_min<=30, "medium", true(), "low")
+| table first_seen sid usernames span_min severity sequence detection
+| sort - first_seen
