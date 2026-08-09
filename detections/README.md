@@ -5,6 +5,6 @@ Each detection lives in its own folder and includes:
 - detection logic + assumptions (`logic.md`)
 - MITRE mapping (`mitre.md`)
 - tuning / false positives (`tuning.md`)
-- optional test data (`test-data/`)
+- validation evidence (`evidence/`)
 
-“Validated on Splunk Free + Sysmon XML via WinEventLog; fields extracted with rex from _raw.”
+Validated on Splunk Enterprise (Free) against WinEventLog/Sysmon XML sources, with fields normalized via `coalesce()` and `rex` for portability across environments.

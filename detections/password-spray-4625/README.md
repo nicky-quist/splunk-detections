@@ -22,10 +22,9 @@ across many accounts. Early detection can prevent account compromise.
   - LogonType, FailureReason/Status/SubStatus (optional context)
 
 ## How to validate (safe)
-Generate a handful of failed logons against multiple test accounts from one source:
-- RDP attempts to a VM
-- SMB auth attempts
-- Local script that tries multiple usernames with a wrong password
+Generate a handful of failed logons against multiple test accounts from one source. Two options:
+- **Live**: RDP/SMB auth attempts, or a local script trying multiple usernames with a wrong password against a lab VM
+- **Simulated (used here)**: synthetic 4625 events pushed straight into Splunk via HTTP Event Collector (HEC) — see `evidence/` for the generation script and results. This avoids touching real auth infrastructure while still exercising the exact field shape (`EventCode`, `TargetUserName`, `IpAddress`) the correlation search expects.
 
 You do NOT need to lock accounts; keep counts small and use lab accounts.
 
@@ -34,5 +33,4 @@ You do NOT need to lock accounts; keep counts small and use lab accounts.
 - mitre.md — MITRE mapping + rationale
 - tuning.md — reduce noise (service accounts, scanners, misconfigs)
 - query.spl — SPL correlation search
-- query_sysmon_xml.spl — not applicable (Sysmon) / placeholder note
-- evidence/ — screenshots + validation notes
+- evidence/ — HEC simulation script, raw ingested events, correlation search output, and validation notes

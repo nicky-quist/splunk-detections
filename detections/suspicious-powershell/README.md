@@ -34,7 +34,7 @@ If suspicious and not expected admin automation:
 - Collect script block logs if enabled, and full process tree
 - Hunt same command line patterns across environment
 
-- ## Quick start
+## Quick start
 - Splunk + Sysmon XML lab: run `query_sysmon_xml.spl`
 - Normalized fields / CIM environments: run `query.spl`
 

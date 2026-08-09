@@ -47,4 +47,7 @@ If your environment is very admin-heavy:
 (only do this if it reduces noise without hiding real attacks)
 
 ## Validation checklist (before you call it “good”)
-- Run for 7 days: identify top parents/users gene
+- Run for 7 days: identify top parents/users generating hits and confirm each is expected admin/automation activity
+- Allowlist only the confirmed-benign parents/accounts from that run — don't pre-exclude anything untested
+- Re-run and confirm volume drops without losing the seeded test event (the `hidden_window,execpolicy_bypass` case in `evidence/`)
+- Document the accepted false-positive rate and revisit thresholds quarterly or after any environment change (new deployment tooling, new admin scripts)
